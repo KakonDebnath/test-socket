@@ -18,17 +18,19 @@ app.use(express.json())
 
 const verifyJWT = (req, res, next) => {
     const authorization = req.headers.authorization
+    console.log(authorization);
     if (!authorization) {
-      return res.status(401).send({ error: true, message: 'unauthorized access' })
+      return res.status(401).send({ error: true, message: ' token nai unauthorized access' })
     }
     // bearer token
     const token = authorization.split(' ')[1]
+    console.log(token);
   
     jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
       if (err) {
         return res
           .status(401)
-          .send({ error: true, message: 'unauthorized access' })
+          .send({ error: true, message: 'didnot match unauthorized access' })
       }
       req.decoded = decoded
       next()
@@ -57,6 +59,7 @@ async function run() {
         // all collections
         const usersCollection = client.db("summerSchoolDB").collection("users");
         const classesCollection = client.db("summerSchoolDB").collection("classes");
+        const selectedClassesCollection = client.db("summerSchoolDB").collection("selectedClasses");
         // Connect the client to the server	(optional starting in v4.7)
         client.connect();
 
@@ -83,7 +86,9 @@ async function run() {
         // post selected class
         app.post("/selectedClass", async (req, res) => {
             const selectedClass = req.body;
-            console.log(selectedClass);
+            const result = await selectedClassesCollection.insertOne(selectedClass);
+            res.send(result);
+
         })
 
         // get all classes by user email
