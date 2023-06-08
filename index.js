@@ -64,7 +64,6 @@ async function run() {
         app.post('/jwt', (req, res) => {
             const user = req.body;
             const token = jwt.sign(user, process.env.ACCESS_TOKEN, { expiresIn: '1h' })
-      
             res.send({ token })
           })
         // Save user email and role in DB
@@ -80,10 +79,22 @@ async function run() {
             res.send(result)
         })
 
+
+        // get all classes by user email
+
+        app.get("/classes", async (req, res) => {
+            const email = req.query.email;
+            const query = { email: email };
+            const result = await classesCollection.find(query).toArray();
+            res.send(result);
+        })
+
         // Add A Class
         app.post("/addClass", async (req, res) => {
             const classes = req.body;
             console.log(classes);
+            const result = await classesCollection.insertOne(classes)
+            res.send(result);
         })
         // Send a ping to confirm a successful connection
         await client.db("admin").command({ ping: 1 });
