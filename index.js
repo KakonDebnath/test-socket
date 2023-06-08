@@ -4,7 +4,7 @@ const app = express();
 const port = process.env.PORT || 5000;
 const jwt = require('jsonwebtoken');
 require('dotenv').config()
-const { MongoClient, ServerApiVersion } = require('mongodb');
+const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 
 // middleware
 const corsOptions = {
@@ -20,22 +20,22 @@ const verifyJWT = (req, res, next) => {
     const authorization = req.headers.authorization
     console.log(authorization);
     if (!authorization) {
-      return res.status(401).send({ error: true, message: ' token nai unauthorized access' })
+        return res.status(401).send({ error: true, message: ' token nai unauthorized access' })
     }
     // bearer token
     const token = authorization.split(' ')[1]
     console.log(token);
-  
+
     jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
-      if (err) {
-        return res
-          .status(401)
-          .send({ error: true, message: 'didnot match unauthorized access' })
-      }
-      req.decoded = decoded
-      next()
+        if (err) {
+            return res
+                .status(401)
+                .send({ error: true, message: 'didnot match unauthorized access' })
+        }
+        req.decoded = decoded
+        next()
     })
-  }
+}
 
 
 
@@ -68,7 +68,7 @@ async function run() {
             const user = req.body;
             const token = jwt.sign(user, process.env.ACCESS_TOKEN, { expiresIn: '1h' })
             res.send({ token })
-          })
+        })
         // Save user email and role in DB
         app.put('/users', async (req, res) => {
             const user = req.body
@@ -83,12 +83,26 @@ async function run() {
         })
 
 
+        // Get selected class
+        app.get("/selectedClass", async (req, res) => {
+            const email = req.query.email;
+            const query = { email: email };
+            const result = await selectedClassesCollection.find(query).toArray();
+            res.send(result);
+        })
+        // Delete from selected class
+        app.delete("/selectedClass/:id", async (req, res) => {
+            const id = req.params.id;
+            console.log(id);
+            const query = { _id: new ObjectId(id) }
+            const result = await selectedClassesCollection.deleteOne(query);
+            res.send(result);
+        })
         // post selected class
         app.post("/selectedClass", async (req, res) => {
             const selectedClass = req.body;
             const result = await selectedClassesCollection.insertOne(selectedClass);
             res.send(result);
-
         })
 
         // get all classes by user email
