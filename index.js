@@ -80,8 +80,18 @@ async function run() {
         })
 
 
-        // get all classes by user email
+        // post selected class
+        app.post("/selectedClass", async (req, res) => {
+            const selectedClass = req.body;
+            console.log(selectedClass);
+        })
 
+        // get all classes by user email
+        app.get("/allClasses", async (req, res) => {
+            const result = await classesCollection.find().toArray();
+            res.send(result);
+        })
+        // get all classes by user email
         app.get("/classes", async (req, res) => {
             const email = req.query.email;
             const query = { email: email };
