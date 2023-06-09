@@ -137,14 +137,21 @@ async function run() {
         })
         // post selected class
         app.post("/selectedClass", verifyJWT, async (req, res) => {
-            const selectedClass = req.body;
+            const selectedClass = req.body
+            const query = {
+                email: selectedClass.email,
+                selectedClassId: selectedClass.selectedClassId
+            }
+            const existing = await selectedClassesCollection.findOne(query)
+            if (existing) {
+                return res.send({ message: "This Class already exists" })
+            }
             const result = await selectedClassesCollection.insertOne(selectedClass);
             res.send(result);
         })
-
         // get all approved class for all students
         app.get("/allClasses", async (req, res) => {
-            const result = await classesCollection.find({status: "approved"}).toArray();
+            const result = await classesCollection.find({ status: "approved" }).toArray();
             res.send(result);
         })
         // get all classes by user email for instructor
