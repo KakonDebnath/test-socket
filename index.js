@@ -161,14 +161,15 @@ async function run() {
             const result = await classesCollection.find().toArray();
             res.send(result);
         })
-        // Update Collection Status clicked by approved btn
+        // Update Collection Status clicked by approved adn deny btn
         app.patch("/admin/classes/:id", async (req, res) => {
             const id = req.params.id;
+            const status = req.body.status;
             const filter = { _id: new ObjectId(id) };
             const options = { upsert: true };
             const updateDoc = {
                 $set: {
-                    status: "approved",
+                    status: status,
                 },
             };
             const result = await classesCollection.updateOne(filter, updateDoc, options);
@@ -178,7 +179,7 @@ async function run() {
         // Add A Class
         app.post("/addClass", verifyJWT, async (req, res) => {
             const classes = req.body;
-            console.log(classes);
+            // console.log(classes);
             const result = await classesCollection.insertOne(classes)
             res.send(result);
         })
