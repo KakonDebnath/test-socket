@@ -142,9 +142,9 @@ async function run() {
             res.send(result);
         })
 
-        // get all classes by user email
-        app.get("/allClasses", verifyJWT, async (req, res) => {
-            const result = await classesCollection.find().toArray();
+        // get all approved class for all students
+        app.get("/allClasses", async (req, res) => {
+            const result = await classesCollection.find({status: "approved"}).toArray();
             res.send(result);
         })
         // get all classes by user email for instructor
@@ -161,8 +161,22 @@ async function run() {
             const result = await classesCollection.find().toArray();
             res.send(result);
         })
+        // Update admin feedback clicked by send feedback
+        app.patch("/admin/feedback/:id", verifyJWT, async (req, res) => {
+            const id = req.params.id;
+            const adminFeedback = req.body.feedback;
+            const filter = { _id: new ObjectId(id) };
+            const options = { upsert: true };
+            const updateDoc = {
+                $set: {
+                    adminFeedback: adminFeedback
+                },
+            };
+            const result = await classesCollection.updateOne(filter, updateDoc, options);
+            res.send(result);
+        })
         // Update Collection Status clicked by approved adn deny btn
-        app.patch("/admin/classes/:id", async (req, res) => {
+        app.patch("/admin/classes/:id", verifyJWT, async (req, res) => {
             const id = req.params.id;
             const status = req.body.status;
             const filter = { _id: new ObjectId(id) };
