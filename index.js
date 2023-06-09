@@ -17,27 +17,24 @@ app.use(express.json())
 
 
 const verifyJWT = (req, res, next) => {
+    //TODO FIX ERROR MSG
     const authorization = req.headers.authorization
-    console.log(authorization);
     if (!authorization) {
         return res.status(401).send({ error: true, message: ' token nai unauthorized access' })
     }
     // bearer token
     const token = authorization.split(' ')[1]
-    console.log(token);
 
-    jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
+    jwt.verify(token, process.env.ACCESS_TOKEN, (err, decoded) => {
         if (err) {
             return res
                 .status(401)
-                .send({ error: true, message: 'didnot match unauthorized access' })
+                .send({ error: true, message: "didn't match unauthorized access" })
         }
         req.decoded = decoded
         next()
     })
 }
-
-
 
 
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.v9m7cjb.mongodb.net/?retryWrites=true&w=majority`;
@@ -69,6 +66,25 @@ async function run() {
             const token = jwt.sign(user, process.env.ACCESS_TOKEN, { expiresIn: '1h' })
             res.send({ token })
         })
+
+        // Verify Admin
+        // TODO Change massage text
+        const verifyAdmin = async (req, res, next) => {
+            const email = req.decoded.email;
+            const query = { email: email };
+            const user = await usersCollection.findOne(query);
+            if (user?.role !== 'admin') {
+                return res.status(403).send({ error: true, message: "Forbidden User admin" })
+            }
+            next();
+        }
+
+
+        // get all users
+        app.get("/users", verifyJWT, async (req, res) => {
+            const result = await usersCollection.find().toArray();
+            res.send(result);
+        })
         // Save user email and role in DB
         app.put('/users', async (req, res) => {
             const user = req.body
@@ -82,9 +98,31 @@ async function run() {
             res.send(result)
         })
 
+        // check role for users
+        app.get("/users/admin/:email", verifyJWT, async (req, res) => {
+            const email = req.params.email;
+            if (req.decoded.email !== email) {
+                res.send({ role: "unauthorized" });
+                return;
+            }
+            const query = { email: email };
+            const user = await usersCollection.findOne(query);
+            let role = "";
+            if (user) {
+                if (user.role === "admin") {
+                    role = "admin";
+                } else if (user.role === "instructor") {
+                    role = "instructor";
+                } else if (user.role === "student") {
+                    role = "student";
+                }
+            }
+            res.send({ role: role });
+        });
+
 
         // Get selected class
-        app.get("/selectedClass", async (req, res) => {
+        app.get("/selectedClass", verifyJWT, async (req, res) => {
             const email = req.query.email;
             const query = { email: email };
             const result = await selectedClassesCollection.find(query).toArray();
@@ -93,7 +131,6 @@ async function run() {
         // Delete from selected class
         app.delete("/selectedClass/:id", async (req, res) => {
             const id = req.params.id;
-            console.log(id);
             const query = { _id: new ObjectId(id) }
             const result = await selectedClassesCollection.deleteOne(query);
             res.send(result);
