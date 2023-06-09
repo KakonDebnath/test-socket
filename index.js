@@ -121,7 +121,7 @@ async function run() {
         });
 
 
-        // Get selected class
+        // Get selected class for student
         app.get("/selectedClass", verifyJWT, async (req, res) => {
             const email = req.query.email;
             const query = { email: email };
@@ -129,34 +129,41 @@ async function run() {
             res.send(result);
         })
         // Delete from selected class
-        app.delete("/selectedClass/:id", async (req, res) => {
+        app.delete("/selectedClass/:id", verifyJWT, async (req, res) => {
             const id = req.params.id;
             const query = { _id: new ObjectId(id) }
             const result = await selectedClassesCollection.deleteOne(query);
             res.send(result);
         })
         // post selected class
-        app.post("/selectedClass", async (req, res) => {
+        app.post("/selectedClass", verifyJWT, async (req, res) => {
             const selectedClass = req.body;
             const result = await selectedClassesCollection.insertOne(selectedClass);
             res.send(result);
         })
 
         // get all classes by user email
-        app.get("/allClasses", async (req, res) => {
+        app.get("/allClasses", verifyJWT, async (req, res) => {
             const result = await classesCollection.find().toArray();
             res.send(result);
         })
-        // get all classes by user email
-        app.get("/classes", async (req, res) => {
+        // get all classes by user email for instructor
+        app.get("/instructor/classes", verifyJWT, async (req, res) => {
             const email = req.query.email;
             const query = { email: email };
             const result = await classesCollection.find(query).toArray();
             res.send(result);
         })
+        
+        // get all classes by user  for Admin
+        app.get("/admin/classes", verifyJWT, async (req, res) => {
+            const email = req.query.email;
+            const result = await classesCollection.find().toArray();
+            res.send(result);
+        })
 
         // Add A Class
-        app.post("/addClass", async (req, res) => {
+        app.post("/addClass", verifyJWT, async (req, res) => {
             const classes = req.body;
             console.log(classes);
             const result = await classesCollection.insertOne(classes)
