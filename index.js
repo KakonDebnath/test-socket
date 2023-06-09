@@ -154,11 +154,24 @@ async function run() {
             const result = await classesCollection.find(query).toArray();
             res.send(result);
         })
-        
+
         // get all classes by user  for Admin
         app.get("/admin/classes", verifyJWT, async (req, res) => {
             const email = req.query.email;
             const result = await classesCollection.find().toArray();
+            res.send(result);
+        })
+        // Update Collection Status clicked by approved btn
+        app.patch("/admin/classes/:id", async (req, res) => {
+            const id = req.params.id;
+            const filter = { _id: new ObjectId(id) };
+            const options = { upsert: true };
+            const updateDoc = {
+                $set: {
+                    status: "approved",
+                },
+            };
+            const result = await classesCollection.updateOne(filter, updateDoc, options);
             res.send(result);
         })
 
