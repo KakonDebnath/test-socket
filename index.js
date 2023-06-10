@@ -197,6 +197,11 @@ async function run() {
             const result = await classesCollection.find({ status: "approved" }).toArray();
             res.send(result);
         })
+        // get all instructor for all students
+        app.get("/allInstructors", async (req, res) => {
+            const result = await usersCollection.find({ role: "instructor" }).toArray();
+            res.send(result);
+        })
         // get all classes by user email for instructor
         app.get("/instructor/classes", verifyJWT, async (req, res) => {
             const email = req.query.email;
