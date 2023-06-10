@@ -159,7 +159,7 @@ async function run() {
             if(result.deletedCount > 0){
                 const updateResult = await classesCollection.updateOne(
                     { _id: new ObjectId(selectedId) },
-                    { $inc: { availableSeats: -1 } }
+                    { $inc: { availableSeats: -1 , totalEnrolledStudent: 1} }
                 )
                 res.send(updateResult);
             }
