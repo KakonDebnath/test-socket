@@ -58,6 +58,7 @@ async function run() {
         const usersCollection = client.db("summerSchoolDB").collection("users");
         const classesCollection = client.db("summerSchoolDB").collection("classes");
         const selectedClassesCollection = client.db("summerSchoolDB").collection("selectedClasses");
+        const paymentsCollection = client.db("summerSchoolDB").collection("payments");
         // Connect the client to the server	(optional starting in v4.7)
         client.connect();
 
@@ -166,6 +167,19 @@ async function run() {
                 return res.send({ message: "This Class already exists" })
             }
             const result = await selectedClassesCollection.insertOne(selectedClass);
+            res.send(result);
+        })
+        // get Payments 
+        app.get("/payments", verifyJWT, async (req, res) => {
+            const email = req.query.email;
+            const query = { email: email };
+            const result = await paymentsCollection.find(query).toArray();
+            res.send(result);
+        })
+        // post Payment 
+        app.post("/payments", verifyJWT, async (req, res) => {
+            const payment = req.body;
+            const result = await paymentsCollection.insertOne(payment);
             res.send(result);
         })
         // get all approved class for all students
