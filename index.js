@@ -155,6 +155,19 @@ async function run() {
             const result = await selectedClassesCollection.deleteOne(query);
             res.send(result);
         })
+        // Delete from selected class after payment has been confirmed
+        app.delete('/payment/selectedClass', verifyJWT, async (req, res) => {
+            const { email, selectedId } = req.query;
+            const query = { email: email, selectedClassId: selectedId }
+            const result = await selectedClassesCollection.deleteOne(query);
+            if(result.deletedCount > 0){
+                const updateResult = await classesCollection.updateOne(
+                    { _id: new ObjectId(selectedId) },
+                    { $inc: { availableSeats: -1 } }
+                )
+                res.send(updateResult);
+            }
+        })
         // post selected class
         app.post("/selectedClass", verifyJWT, async (req, res) => {
             const selectedClass = req.body
