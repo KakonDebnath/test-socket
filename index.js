@@ -239,6 +239,20 @@ async function run() {
             const result = await classesCollection.updateOne(filter, updateDoc, options);
             res.send(result);
         })
+        // Make Admin by admin btn click
+        app.patch("/admin/role/:email", verifyJWT, async (req, res) => {
+            const email = req.params.email;
+            const role = req.body.role;
+            const filter = { email: email };
+            const options = { upsert: true };
+            const updateDoc = {
+                $set: {
+                    role: role,
+                },
+            };
+            const result = await usersCollection.updateOne(filter, updateDoc, options);
+            res.send(result);
+        })
 
         // Add A Class
         app.post("/addClass", verifyJWT, async (req, res) => {
