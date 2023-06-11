@@ -62,7 +62,6 @@ async function run() {
         // Connect the client to the server	(optional starting in v4.7)
         client.connect();
 
-
         // create payment intent
         app.post('/create-payment-intent', async (req, res) => {
             const { price } = req.body;
@@ -77,8 +76,6 @@ async function run() {
                 clientSecret: paymentIntent.client_secret
             })
         })
-
-
 
         // sign jwt
         app.post('/jwt', (req, res) => {
@@ -192,16 +189,26 @@ async function run() {
             const result = await paymentsCollection.insertOne(payment);
             res.send(result);
         })
+
         // get all approved class for all students
         app.get("/allClasses", async (req, res) => {
             const result = await classesCollection.find({ status: "approved" }).toArray();
             res.send(result);
         })
+        // get all Popular class for all students
+        app.get("/popularClasses", async (req, res) => {
+            const result = await classesCollection.find({ status: "approved" }).sort({ totalEnrolledStudent: -1 }).limit(6).toArray();
+            res.send(result);
+        });
+
         // get all instructor for all students
         app.get("/allInstructors", async (req, res) => {
             const result = await usersCollection.find({ role: "instructor" }).toArray();
             res.send(result);
         })
+
+
+
         // get all classes by user email for instructor
         app.get("/instructor/classes", verifyJWT, async (req, res) => {
             const email = req.query.email;
