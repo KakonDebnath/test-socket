@@ -1,6 +1,10 @@
 const express = require('express');
+const http = require('http');
+const socketIo = require('socket.io');
 const cors = require('cors');
 const app = express();
+const server = http.createServer(app);
+const SSLCommerzPayment = require('sslcommerz-lts')
 const port = process.env.PORT || 5000;
 const jwt = require('jsonwebtoken');
 require('dotenv').config()
@@ -13,8 +17,17 @@ const corsOptions = {
     credentials: true,
     optionSuccessStatus: 200,
 }
+
 app.use(cors(corsOptions))
 app.use(express.json())
+
+
+// Socket io
+const socketIO = socketIo(server, {
+    cors: {
+        origin: 'https://assignment-12-bb775.web.app/', // Replace with your frontend's origin
+    },
+});
 
 
 const verifyJWT = (req, res, next) => {
@@ -49,6 +62,11 @@ const client = new MongoClient(uri, {
     }
 });
 
+
+const store_id = process.env.SSLCOMMEREGE_STORE_ID;
+const store_passwd = process.env.SSLCOMMEREGE_STORE_PASS;
+const is_live = false //true for live, false for sandbox
+
 app.get('/', (req, res) => {
     res.send('Welcome to summer school!');
 });
@@ -59,6 +77,8 @@ async function run() {
         const classesCollection = client.db("summerSchoolDB").collection("classes");
         const selectedClassesCollection = client.db("summerSchoolDB").collection("selectedClasses");
         const paymentsCollection = client.db("summerSchoolDB").collection("payments");
+        const conversationCollection = client.db("summerSchoolDB").collection("conversations");
+        const messageCollection = client.db("summerSchoolDB").collection("messages");
         // Connect the client to the server	(optional starting in v4.7)
         client.connect();
 
@@ -112,6 +132,22 @@ async function run() {
             const result = await usersCollection.find().toArray();
             res.send(result);
         })
+
+
+        // get Single users
+        app.get("/chat/singleUser/:email", async (req, res) => {
+            const email = req.params.email;
+            const query = { email: email };
+            const sUser = await usersCollection.findOne(query);
+            res.send(sUser);
+        });
+        // get all users
+        app.get('/chat/allUsers', async (req, res) => {
+            const allUsers = await usersCollection.find().toArray();
+            res.send(allUsers);
+        });
+
+
         // Save user email and role in DB all
         app.put('/users', async (req, res) => {
             const user = req.body
@@ -163,10 +199,10 @@ async function run() {
             const { email, selectedId } = req.query;
             const query = { email: email, selectedClassId: selectedId }
             const result = await selectedClassesCollection.deleteOne(query);
-            if(result.deletedCount > 0){
+            if (result.deletedCount > 0) {
                 const updateResult = await classesCollection.updateOne(
                     { _id: new ObjectId(selectedId) },
-                    { $inc: { availableSeats: -1 , totalEnrolledStudent: 1} }
+                    { $inc: { availableSeats: -1, totalEnrolledStudent: 1 } }
                 )
                 res.send(updateResult);
             }
@@ -283,6 +319,178 @@ async function run() {
             const result = await classesCollection.insertOne(classes)
             res.send(result);
         })
+
+
+        // order by bkash
+        app.post("/payment/order", async (req, res) => {
+            const orderDetails = req.body;
+            console.log(orderDetails);
+            const selectClass = await classesCollection.findOne({ _id: new ObjectId(orderDetails.classId) });
+            console.log(selectClass);
+            const data = {
+                total_amount: selectClass?.price,
+                currency: 'BDT',
+                tran_id: 'REF123', // use unique tran_id for each api call
+                success_url: 'http://localhost:3030/success',
+                fail_url: 'http://localhost:3030/fail',
+                cancel_url: 'http://localhost:3030/cancel',
+                ipn_url: 'http://localhost:3030/ipn',
+                shipping_method: 'Courier',
+                product_name: 'Computer.',
+                product_category: 'Electronic',
+                product_profile: 'general',
+                cus_name: 'Customer Name',
+                cus_email: 'customer@example.com',
+                cus_add1: 'Dhaka',
+                cus_add2: 'Dhaka',
+                cus_city: 'Dhaka',
+                cus_state: 'Dhaka',
+                cus_postcode: '1000',
+                cus_country: 'Bangladesh',
+                cus_phone: '01711111111',
+                cus_fax: '01711111111',
+                ship_name: 'Customer Name',
+                ship_add1: 'Dhaka',
+                ship_add2: 'Dhaka',
+                ship_city: 'Dhaka',
+                ship_state: 'Dhaka',
+                ship_postcode: 1000,
+                ship_country: 'Bangladesh',
+            };
+            // const sslcz = new SSLCommerzPayment(store_id, store_passwd, is_live)
+            // sslcz.init(data).then(apiResponse => {
+            //     // Redirect the user to payment gateway
+            //     let GatewayPageURL = apiResponse.GatewayPageURL
+            //     res.redirect(GatewayPageURL)
+            //     console.log('Redirecting to: ', GatewayPageURL)
+            // });
+        })
+
+        // save conversation 
+        app.post('/conversation', async (req, res) => {
+            const { senderId, receiverId } = req.body;
+            const conversation = {
+                members: [senderId, receiverId]
+            }
+            const newConversation = await conversationCollection.insertOne(conversation)
+            res.send(newConversation);
+        });
+
+
+
+        // get conversation users
+        app.get('/conversation/:userId', async (req, res) => {
+            try {
+                const userId = req.params.userId;
+                const conversations = await conversationCollection.find({ members: { $in: [userId] } }).toArray();
+
+                const conversationUserData = Promise.all(conversations.map(async (conversation) => {
+                    const conversationId = conversation._id;
+                    const conversationUserId = conversation.members.find(m => m !== userId);
+                    const user = await usersCollection.findOne({ _id: new ObjectId(conversationUserId) });
+                    return { user, conversationId };
+                }));
+                res.send(await conversationUserData);
+            } catch (error) {
+                console.error(error);
+                res.status(500).send("An error occurred while fetching conversations.");
+            }
+        });
+
+
+        // // post message
+        // app.post('/chat/messages', async (req, res) => {
+        //     try {
+        //         const { conversationId, senderId, message } = req.body;
+        //         const newMessage = await messageCollection.insertOne({ conversationId, senderId, message });
+        //         res.send(newMessage);
+        //     } catch (error) {
+        //         console.error(error);
+        //         res.status(500).send("An error occurred while post message.");
+        //     }
+        // });
+
+
+
+
+        // // get message
+        // app.get('/chat/messages/:conversionId', async (req, res) => {
+        //     try {
+        //         const conversionId = req.params.conversionId;
+        //         const messages = await messageCollection.find({ conversationId: conversionId }).toArray();
+        //         // const messagesUserData = Promise.all(messages.map(async (message) => {
+        //         //     const user = await usersCollection.findOne({ _id: new ObjectId(message.senderId) });
+        //         //     return user;
+        //         // }));
+        //         res.send(messages);
+        //     } catch (error) {
+        //         console.error(error);
+        //         res.status(500).send(error.message);
+        //     }
+        // });
+
+        //   // get message
+        // app.get('/chat/messages/:conversionId', async (req, res) => {
+        //     try {
+        //         const conversionId = req.params.conversionId;
+        //         const messages = await messageCollection.find({ conversationId: conversionId }).toArray();
+        //         res.send(messages);
+        //     } catch (error) {
+        //         console.error(error);
+        //         res.status(500).send(error.message);
+        //     }
+        // });
+
+
+
+        // Socket.IO connection handling
+        // socket.on("connected", function (userEmail) {
+            //     users[userEmail] = socket.id;
+
+            //     console.log("User connected: " + socket.id + ", userId = " + userId);
+            // });
+
+            
+
+            // // post message to database using socket.io
+            // socket.on('chatMessage', async (messageData) => {
+            //     const newMessage = await messageCollection.insertOne(messageData);
+            // });
+        socketIO.on('connection', socket => {
+            console.log('A user connected');
+
+            // socket.on('conversationId', (conversationId) => {
+            //     // Join the room with the same conversationId
+            //     socket.join(conversationId);
+            // });
+
+
+            socket.on('conversationId', async (conversationId) => {
+                socket.join(conversationId);
+                const messages = await messageCollection.find({ conversationId: conversationId }).toArray();
+                socket.emit('allMessages', messages);
+            })
+            // socket.on('chatMessage', async (messageData) => {
+            //     const newMessage = await messageCollection.insertOne(messageData);
+            //     const messages = await messageCollection.find({ conversationId: messageData.conversationId }).toArray();
+            //     socket.emit('allMessages', messages);
+            // });
+
+            socket.on('chatMessage', async (messageData) => {
+                const newMessage = await messageCollection.insertOne(messageData);
+                const messages = await messageCollection.find({ conversationId: messageData.conversationId }).toArray();
+                
+                // Emit the new message to all sockets in the conversation
+                socketIO.to(messageData.conversationId).emit('allMessages', messages);
+            });
+
+            socket.on('disconnect', () => {
+                console.log('User disconnected');
+            });
+        });
+
+
+
         // Send a ping to confirm a successful connection
         await client.db("admin").command({ ping: 1 });
         console.log("Pinged your deployment. You successfully connected to MongoDB!");
@@ -294,10 +502,6 @@ async function run() {
 run().catch(console.dir);
 
 
-
-
-
-app.listen(port, (req, res) => {
-    console.log(`app is listening on port ${port}`);
+server.listen(port, (req, res) => {
+    console.log(`Server is listening on port ${"http://localhost:" + port}`);
 });
-
