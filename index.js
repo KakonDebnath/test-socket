@@ -25,7 +25,7 @@ app.use(express.json())
 // Socket io
 const socketIO = socketIo(server, {
     cors: {
-        origin: 'https://assignment-12-bb775.web.app/', // Replace with your frontend's origin
+        origin: 'https://assignment-12-bb775.web.app', // Replace with your frontend's origin
     },
 });
 
