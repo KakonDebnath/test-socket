@@ -3,9 +3,8 @@ const http = require('http');
 const socketIo = require('socket.io');
 const cors = require('cors');
 const app = express();
-const server = http.createServer(app);
-const SSLCommerzPayment = require('sslcommerz-lts')
 const port = process.env.PORT || 5000;
+const SSLCommerzPayment = require('sslcommerz-lts')
 const jwt = require('jsonwebtoken');
 require('dotenv').config()
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
@@ -13,7 +12,7 @@ const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 
 // middleware
 const corsOptions = {
-    origin: '*',
+    origin: 'http://localhost:5173',
     credentials: true,
     optionSuccessStatus: 200,
 }
@@ -22,11 +21,16 @@ app.use(cors(corsOptions))
 app.use(express.json())
 
 
+const server = http.createServer(app);
 // Socket io
 const socketIO = socketIo(server, {
     cors: {
-        origin: 'https://assignment-12-bb775.web.app', // Replace with your frontend's origin
+        origin: 'http://localhost:5173',
+        methods: ['GET', 'POST'],
+        credentials: true,
+        allowedHeaders: ['Access-Control-Allow-Origin']
     },
+    maxHttpBufferSize: 1e8
 });
 
 
@@ -369,6 +373,17 @@ async function run() {
         // save conversation 
         app.post('/conversation', async (req, res) => {
             const { senderId, receiverId } = req.body;
+            console.log(senderId, receiverId);
+            const query = {
+                members: {
+                    $all: [senderId, receiverId]
+                }
+            };
+            const result = await conversationCollection.findOne(query);
+            if (result) {
+                res.json("already_Created")
+            }
+            console.log(result);
             const conversation = {
                 members: [senderId, receiverId]
             }
@@ -445,17 +460,17 @@ async function run() {
 
         // Socket.IO connection handling
         // socket.on("connected", function (userEmail) {
-            //     users[userEmail] = socket.id;
+        //     users[userEmail] = socket.id;
 
-            //     console.log("User connected: " + socket.id + ", userId = " + userId);
-            // });
+        //     console.log("User connected: " + socket.id + ", userId = " + userId);
+        // });
 
-            
 
-            // // post message to database using socket.io
-            // socket.on('chatMessage', async (messageData) => {
-            //     const newMessage = await messageCollection.insertOne(messageData);
-            // });
+
+        // // post message to database using socket.io
+        // socket.on('chatMessage', async (messageData) => {
+        //     const newMessage = await messageCollection.insertOne(messageData);
+        // });
         socketIO.on('connection', socket => {
             console.log('A user connected');
 
@@ -479,7 +494,7 @@ async function run() {
             socket.on('chatMessage', async (messageData) => {
                 const newMessage = await messageCollection.insertOne(messageData);
                 const messages = await messageCollection.find({ conversationId: messageData.conversationId }).toArray();
-                
+
                 // Emit the new message to all sockets in the conversation
                 socketIO.to(messageData.conversationId).emit('allMessages', messages);
             });
@@ -502,6 +517,9 @@ async function run() {
 run().catch(console.dir);
 
 
+// app.listen(port, (req, res) => {
+//     console.log(`app is listening on port ${port}`);
+// });
 server.listen(port, (req, res) => {
-    console.log(`Server is listening on port ${"http://localhost:" + port}`);
+    console.log(`server is listening on port ${port}`);
 });
