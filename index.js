@@ -382,13 +382,13 @@ async function run() {
             const result = await conversationCollection.findOne(query);
             if (result) {
                 res.json("already_Created")
+            }else{
+                const conversation = {
+                    members: [senderId, receiverId]
+                }
+                const newConversation = await conversationCollection.insertOne(conversation)
+                res.send(newConversation);
             }
-            console.log(result);
-            const conversation = {
-                members: [senderId, receiverId]
-            }
-            const newConversation = await conversationCollection.insertOne(conversation)
-            res.send(newConversation);
         });
 
 
