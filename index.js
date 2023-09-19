@@ -12,7 +12,7 @@ const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 
 // middleware
 const corsOptions = {
-    origin: 'http://localhost:5173',
+    origin: ['http://localhost:5173', 'https://assignment-12-bb775.web.app'],
     credentials: true,
     optionSuccessStatus: 200,
 }
@@ -25,7 +25,7 @@ const server = http.createServer(app);
 // Socket io
 const socketIO = socketIo(server, {
     cors: {
-        origin: 'http://localhost:5173',
+        origin: ['http://localhost:5173', 'https://assignment-12-bb775.web.app'],
         methods: ['GET', 'POST'],
         credentials: true,
         allowedHeaders: ['Access-Control-Allow-Origin']
