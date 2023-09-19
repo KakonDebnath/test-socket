@@ -382,7 +382,7 @@ async function run() {
             const result = await conversationCollection.findOne(query);
             if (result) {
                 res.json("already_Created")
-            }else{
+            } else {
                 const conversation = {
                     members: [senderId, receiverId]
                 }
@@ -393,24 +393,24 @@ async function run() {
 
 
 
-        // get conversation users
-        app.get('/conversation/:userId', async (req, res) => {
-            try {
-                const userId = req.params.userId;
-                const conversations = await conversationCollection.find({ members: { $in: [userId] } }).toArray();
+        // // get conversation users
+        // app.get('/conversation/:userId', async (req, res) => {
+        //     try {
+        //         const userId = req.params.userId;
+        //         const conversations = await conversationCollection.find({ members: { $in: [userId] } }).toArray();
 
-                const conversationUserData = Promise.all(conversations.map(async (conversation) => {
-                    const conversationId = conversation._id;
-                    const conversationUserId = conversation.members.find(m => m !== userId);
-                    const user = await usersCollection.findOne({ _id: new ObjectId(conversationUserId) });
-                    return { user, conversationId };
-                }));
-                res.send(await conversationUserData);
-            } catch (error) {
-                console.error(error);
-                res.status(500).send("An error occurred while fetching conversations.");
-            }
-        });
+        //         const conversationUserData = Promise.all(conversations.map(async (conversation) => {
+        //             const conversationId = conversation._id;
+        //             const conversationUserId = conversation.members.find(m => m !== userId);
+        //             const user = await usersCollection.findOne({ _id: new ObjectId(conversationUserId) });
+        //             return { user, conversationId };
+        //         }));
+        //         res.send(await conversationUserData);
+        //     } catch (error) {
+        //         console.error(error);
+        //         res.status(500).send("An error occurred while fetching conversations.");
+        //     }
+        // });
 
 
         // // post message
@@ -471,13 +471,62 @@ async function run() {
         // socket.on('chatMessage', async (messageData) => {
         //     const newMessage = await messageCollection.insertOne(messageData);
         // });
+
+        const users = {};
         socketIO.on('connection', socket => {
             console.log('A user connected');
 
+            // Handle user connection
+            socket.on('user-connected', (userId) => {
+                users[userId] = 'online';
+                socketIO.emit('user-status', users);
+            });
             // socket.on('conversationId', (conversationId) => {
             //     // Join the room with the same conversationId
             //     socket.join(conversationId);
             // });
+
+            socket.on("getSingleUser", async (email) => {
+                const query = { email: email };
+                const sUser = await usersCollection.findOne(query);
+                socket.emit('userData', JSON.stringify(sUser));
+            })
+
+            socket.on("addConversation", async ({ senderId, receiverId }) => {
+                const query = {
+                    members: {
+                        $all: [senderId, receiverId]
+                    }
+                };
+                const result = await conversationCollection.findOne(query);
+                if (result) {
+                    // res.json("already_Created")
+                    console.log(result);
+                    socket.emit("conversation", "already_created")
+                } else {
+                    const conversation = {
+                        members: [senderId, receiverId]
+                    }
+                    const newConversation = await conversationCollection.insertOne(conversation)
+                    // res.send(newConversation);
+                    socket.emit("conversation", newConversation);
+                }
+            })
+
+            socket.on("getConversationData", async (userId) => {
+                const conversations = await conversationCollection.find({ members: { $in: [userId] } }).toArray();
+
+                const conversationUserData = Promise.all(conversations.map(async (conversation) => {
+                    const conversationId = conversation._id;
+                    const conversationUserId = conversation.members.find(m => m !== userId);
+                    const user = await usersCollection.findOne({ _id: new ObjectId(conversationUserId) });
+                    return { user, conversationId };
+                }));
+                socket.emit("conversationUserData", await conversationUserData);
+
+                // res.send(await conversationUserData);
+
+            })
 
 
             socket.on('conversationId', async (conversationId) => {
@@ -501,6 +550,11 @@ async function run() {
 
             socket.on('disconnect', () => {
                 console.log('User disconnected');
+                const userId = Object.keys(users).find((key) => users[key] === socket.id);
+                if (userId) {
+                    users[userId] = 'offline';
+                    socketIO.emit('user-status', users);
+                }
             });
         });
 
